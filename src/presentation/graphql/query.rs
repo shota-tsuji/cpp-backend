@@ -1,3 +1,4 @@
+use super::object::Recipe;
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema};
 use sqlx::mysql::MySqlPool;
 
@@ -35,13 +36,6 @@ impl Query {
 
         Ok(recipe)
     }
-}
-
-#[derive(Debug, async_graphql::SimpleObject)]
-pub struct Recipe {
-    pub id: i32,
-    pub title: String,
-    pub description: String,
 }
 
 #[derive(sqlx::FromRow)]
