@@ -10,6 +10,10 @@ use axum::{
     routing::{get, post},
     Router,
 };
+use cpp_backend::presentation::{
+    controller::graphql_controller::{graphiql, graphql_handler},
+    graphql::query::Query,
+};
 use sqlx::mysql::MySqlPool;
 use std::env;
 use std::net::SocketAddr;
@@ -20,12 +24,8 @@ async fn main() {
         .await
         .unwrap();
 
-    let schema = Schema::build(
-        Query { pool: pool.clone() },
-        EmptyMutation,
-        EmptySubscription,
-    )
-    .finish();
+    let query = Query::new(pool.clone());
+    let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
 
     let app = Router::new()
         .route("/", get(graphiql).post(graphql_handler))
@@ -36,56 +36,4 @@ async fn main() {
         .serve(app.into_make_service())
         .await
         .unwrap();
-}
-
-pub type QuerySchema = Schema<Query, EmptyMutation, EmptySubscription>;
-
-async fn graphql_handler(schema: Extension<QuerySchema>, req: GraphQLRequest) -> GraphQLResponse {
-    schema.execute(req.into_inner()).await.into()
-}
-
-async fn graphiql() -> impl IntoResponse {
-    response::Html(GraphiQLSource::build().endpoint("/").finish())
-}
-
-#[derive(Debug, async_graphql::SimpleObject)]
-pub struct Recipe {
-    pub id: i32,
-    pub title: String,
-    pub description: String,
-}
-
-pub struct Query {
-    pool: MySqlPool,
-}
-
-#[derive(sqlx::FromRow)]
-struct RecipeRow {
-    id: i32,
-    title: String,
-    description: String,
-}
-
-#[Object]
-impl Query {
-    async fn recipe(&self, ctx: &Context<'_>) -> Result<Recipe, String> {
-        let recipe_row: Option<RecipeRow> =
-            sqlx::query_as(r#"SELECT id, title, description FROM recipes WHERE id = ?"#)
-                .bind("0")
-                .fetch_optional(&self.pool)
-                .await
-                .unwrap();
-
-        let recipe = recipe_row
-            .map(|row| Recipe {
-                id: row.id,
-                title: row.title,
-                description: row.description,
-            })
-            .unwrap();
-
-        println!("{:?}", &recipe);
-
-        Ok(recipe)
-    }
 }
