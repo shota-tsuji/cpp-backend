@@ -36,6 +36,27 @@ impl Query {
 
         Ok(recipe)
     }
+
+    async fn recipes(&self, _ctx: &Context<'_>) -> Result<Vec<Recipe>, String> {
+        let recipes = sqlx::query_as("SELECT * FROM recipes")
+            .fetch_all(&self.pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row: RecipeRow| {
+                let id = row.id;
+                let title = row.title;
+                let description = row.description;
+                Recipe {
+                    id,
+                    title,
+                    description,
+                }
+            })
+            .collect();
+
+        Ok(recipes)
+    }
 }
 
 #[derive(sqlx::FromRow)]
