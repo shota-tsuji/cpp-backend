@@ -1,15 +1,18 @@
-use async_graphql::{Context, Object};
+use async_graphql::{
+    http::GraphiQLSource, Context, EmptyMutation, EmptySubscription, Object, Schema,
+};
+use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{
     async_trait,
-    extract::{FromRef, FromRequestParts, State},
+    extract::{Extension, FromRef, FromRequestParts, State},
     http::{request::Parts, StatusCode},
-    routing::get,
+    response::{self, IntoResponse},
+    routing::{get, post},
     Router,
 };
 use sqlx::mysql::MySqlPool;
 use std::env;
 use std::net::SocketAddr;
-use tokio::net::TcpListener;
 
 #[tokio::main]
 async fn main() {
@@ -17,9 +20,16 @@ async fn main() {
         .await
         .unwrap();
 
+    let schema = Schema::build(
+        Query { pool: pool.clone() },
+        EmptyMutation,
+        EmptySubscription,
+    )
+    .finish();
+
     let app = Router::new()
-        .route("/", get(get_recipe_list))
-        .with_state(pool);
+        .route("/", get(graphiql).post(graphql_handler))
+        .layer(Extension(schema));
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
     axum::Server::bind(&addr)
@@ -28,33 +38,14 @@ async fn main() {
         .unwrap();
 }
 
-async fn get_recipe_list(State(pool): State<MySqlPool>) -> Result<(), (StatusCode, String)> {
-    let recipe_row: Option<RecipeRow> =
-        sqlx::query_as("SELECT id, title, description FROM recipes WHERE id = ?")
-            .bind("0")
-            .fetch_optional(&pool)
-            .await
-            .unwrap();
+pub type QuerySchema = Schema<Query, EmptyMutation, EmptySubscription>;
 
-    let recipe = recipe_row
-        .map(|row| Recipe {
-            id: row.id,
-            title: row.title,
-            description: row.description,
-        })
-        .unwrap();
-
-    //let title = rec.unwrap().title;
-    println!("{:?}", &recipe);
-
-    Ok(())
+async fn graphql_handler(schema: Extension<QuerySchema>, req: GraphQLRequest) -> GraphQLResponse {
+    schema.execute(req.into_inner()).await.into()
 }
 
-fn internal_error<E>(err: E) -> (StatusCode, String)
-where
-    E: std::error::Error,
-{
-    (StatusCode::INTERNAL_SERVER_ERROR, err.to_string())
+async fn graphiql() -> impl IntoResponse {
+    response::Html(GraphiQLSource::build().endpoint("/").finish())
 }
 
 #[derive(Debug, async_graphql::SimpleObject)]
@@ -64,7 +55,7 @@ pub struct Recipe {
     pub description: String,
 }
 
-pub struct QueryRoot {
+pub struct Query {
     pool: MySqlPool,
 }
 
@@ -76,14 +67,10 @@ struct RecipeRow {
 }
 
 #[Object]
-impl QueryRoot {
+impl Query {
     async fn recipe(&self, ctx: &Context<'_>) -> Result<Recipe, String> {
-        //let rec = sqlx::query!(r#"SELECT id, title, description FROM recipes"#)
-        //    .fetch_one(&self.pool)
-        //    .await
-        //    .map_err(internal_error);
         let recipe_row: Option<RecipeRow> =
-            sqlx::query_as(r#"SELECT id, title, description FROM recipes WHERE id = $1"#)
+            sqlx::query_as(r#"SELECT id, title, description FROM recipes WHERE id = ?"#)
                 .bind("0")
                 .fetch_optional(&self.pool)
                 .await
@@ -97,7 +84,6 @@ impl QueryRoot {
             })
             .unwrap();
 
-        //let title = rec.unwrap().title;
         println!("{:?}", &recipe);
 
         Ok(recipe)
