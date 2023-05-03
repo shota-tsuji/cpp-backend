@@ -1,12 +1,6 @@
-use async_graphql::{
-    EmptyMutation, EmptySubscription, Schema,
-};
+use async_graphql::{EmptyMutation, EmptySubscription, Schema};
 
-use axum::{
-    extract::{Extension},
-    routing::{get},
-    Router,
-};
+use axum::{extract::Extension, routing::get, Router};
 use cpp_backend::presentation::{
     controller::graphql_controller::{graphiql, graphql_handler},
     graphql::query::Query,
@@ -28,7 +22,7 @@ async fn main() {
         .route("/", get(graphiql).post(graphql_handler))
         .layer(Extension(schema));
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 8080));
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
     axum::Server::bind(&addr)
         .serve(app.into_make_service())
         .await
