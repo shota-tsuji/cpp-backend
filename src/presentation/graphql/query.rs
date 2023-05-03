@@ -15,7 +15,7 @@ impl Query {
 
 #[Object]
 impl Query {
-    async fn recipe(&self, ctx: &Context<'_>) -> Result<Recipe, String> {
+    async fn recipe(&self, _ctx: &Context<'_>) -> Result<Recipe, String> {
         let recipe_row: Option<RecipeRow> =
             sqlx::query_as(r#"SELECT id, title, description FROM recipes WHERE id = ?"#)
                 .bind("0")

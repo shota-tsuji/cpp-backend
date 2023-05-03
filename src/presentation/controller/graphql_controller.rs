@@ -1,14 +1,10 @@
 use async_graphql::{
-    http::GraphiQLSource, Context, EmptyMutation, EmptySubscription, Object, Schema,
+    http::GraphiQLSource,
 };
 use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
 use axum::{
-    async_trait,
-    extract::{Extension, FromRef, FromRequestParts, State},
-    http::{request::Parts, StatusCode},
+    extract::{Extension},
     response::{self, IntoResponse},
-    routing::{get, post},
-    Router,
 };
 
 use crate::presentation::graphql::query::QuerySchema;

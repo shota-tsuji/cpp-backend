@@ -1,13 +1,10 @@
 use async_graphql::{
-    http::GraphiQLSource, Context, EmptyMutation, EmptySubscription, Object, Schema,
+    EmptyMutation, EmptySubscription, Schema,
 };
-use async_graphql_axum::{GraphQLRequest, GraphQLResponse};
+
 use axum::{
-    async_trait,
-    extract::{Extension, FromRef, FromRequestParts, State},
-    http::{request::Parts, StatusCode},
-    response::{self, IntoResponse},
-    routing::{get, post},
+    extract::{Extension},
+    routing::{get},
     Router,
 };
 use cpp_backend::presentation::{
