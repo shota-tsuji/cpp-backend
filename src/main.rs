@@ -5,9 +5,15 @@ use cpp_backend::presentation::{
     controller::graphql_controller::{graphiql, graphql_handler},
     graphql::query::Query,
 };
+use http::{
+    header::{ACCEPT, CONTENT_TYPE},
+    HeaderValue, Method,
+};
 use sqlx::mysql::MySqlPool;
 use std::env;
 use std::net::SocketAddr;
+use tower::ServiceBuilder;
+use tower_http::cors::CorsLayer;
 
 #[tokio::main]
 async fn main() {
@@ -18,8 +24,16 @@ async fn main() {
     let query = Query::new(pool.clone());
     let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
 
+    let origins = ["http://localhost:5173".parse().unwrap()];
+    let cors = CorsLayer::new()
+        .allow_origin(origins)
+        .allow_methods([Method::POST])
+        .allow_headers(vec![ACCEPT, CONTENT_TYPE]);
+    let cors_layer = ServiceBuilder::new().layer(cors);
+
     let app = Router::new()
         .route("/", get(graphiql).post(graphql_handler))
+        .layer(cors_layer)
         .layer(Extension(schema));
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
