@@ -68,6 +68,7 @@ impl Query {
                 let id = row.id;
                 let title = row.title;
                 let description = row.description;
+                println!("{:?}, {:?}, {:?}", id, title, description);
                 Recipe {
                     id,
                     title,
@@ -82,14 +83,14 @@ impl Query {
 
 #[derive(sqlx::FromRow)]
 struct RecipeRow {
-    id: i32,
+    id: String,
     title: String,
     description: String,
 }
 
 #[derive(sqlx::FromRow)]
 struct StepRow {
-    id: i32,
+    id: String,
     description: String,
     resource_id: i32,
     order_number: u32,
