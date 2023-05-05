@@ -21,7 +21,6 @@ impl Mutation {
         recipe_detail_data: CreateRecipeDetailInput,
     ) -> Result<RecipeDetail, String> {
         let uuid = Uuid::new_v4();
-        println!("here0");
         let query_result =
             sqlx::query(r#"INSERT INTO recipes (id, title, description) VALUES (?, ?, ?)"#)
                 .bind(uuid.to_string())
@@ -33,8 +32,8 @@ impl Mutation {
         if let Err(err) = query_result {
             eprintln!("{}", err);
         }
-        println!("here1");
-        let steps = recipe_detail_data
+
+        let steps: Vec<Step> = recipe_detail_data
             .steps
             .into_iter()
             .map(|step| Step {
@@ -45,6 +44,19 @@ impl Mutation {
                 duration: step.duration,
             })
             .collect();
+        for step in steps.iter() {
+            sqlx::query("INSERT INTO steps (id, recipe_id, description, resource_id, order_number, duration) VALUES (?, ?, ?, ?, ?, ?)")
+                .bind(step.id.clone())
+                .bind(uuid.to_string())
+                .bind(step.description.clone())
+                .bind(step.resource_id)
+                .bind(step.order_number)
+                .bind(step.duration)
+                .execute(&self.pool)
+                .await
+                .unwrap();
+        }
+
         let recipe_detail = RecipeDetail {
             id: uuid.to_string(),
             title: recipe_detail_data.title,
