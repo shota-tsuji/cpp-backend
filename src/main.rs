@@ -22,8 +22,8 @@ async fn main() {
         .unwrap();
 
     let query = Query::new(pool.clone());
-    //let mutation = Mutation::new(pool.clone());
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
+    let mutation = Mutation::new(pool.clone());
+    let schema = Schema::build(query, mutation, EmptySubscription).finish();
 
     let origins = ["http://localhost:5173".parse().unwrap()];
     let cors = CorsLayer::new()

@@ -1,8 +1,9 @@
 use super::object::{Recipe, RecipeDetail, Step};
+use crate::presentation::graphql::mutation::Mutation;
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, ID};
 use sqlx::mysql::MySqlPool;
 
-pub type QuerySchema = Schema<Query, EmptyMutation, EmptySubscription>;
+pub type QuerySchema = Schema<Query, Mutation, EmptySubscription>;
 
 pub struct Query {
     pool: MySqlPool,
