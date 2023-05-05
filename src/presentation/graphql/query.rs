@@ -1,5 +1,5 @@
 use super::object::{Recipe, RecipeDetail, Step};
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema};
+use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, ID};
 use sqlx::mysql::MySqlPool;
 
 pub type QuerySchema = Schema<Query, EmptyMutation, EmptySubscription>;
@@ -16,10 +16,10 @@ impl Query {
 
 #[Object]
 impl Query {
-    async fn recipe_detail(&self, _ctx: &Context<'_>) -> Result<RecipeDetail, String> {
+    async fn recipe_detail(&self, _ctx: &Context<'_>, id: ID) -> Result<RecipeDetail, String> {
         let recipe_row: Option<RecipeRow> =
             sqlx::query_as(r#"SELECT id, title, description FROM recipes WHERE id = ?"#)
-                .bind("0")
+                .bind(id.as_str())
                 .fetch_optional(&self.pool)
                 .await
                 .unwrap();
@@ -33,7 +33,7 @@ impl Query {
             .unwrap();
 
         let steps = sqlx::query_as("select id, description, resource_id, order_number, duration from steps where recipe_id = ?")
-            .bind("0")
+            .bind(id.as_str())
             .fetch_all(&self.pool)
             .await.unwrap().into_iter().map(|row: StepRow| {
                 let id = row.id;
