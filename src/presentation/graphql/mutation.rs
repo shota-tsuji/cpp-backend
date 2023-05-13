@@ -20,10 +20,11 @@ impl Mutation {
         _ctx: &Context<'_>,
         recipe_detail_data: CreateRecipeDetailInput,
     ) -> Result<RecipeDetail, String> {
-        let uuid = Uuid::new_v4();
+        let recipe_id = Uuid::new_v4().to_string();
+        println!("{}", recipe_id.clone());
         let query_result =
             sqlx::query(r#"INSERT INTO recipes (id, title, description) VALUES (?, ?, ?)"#)
-                .bind(uuid.to_string())
+                .bind(recipe_id.clone())
                 .bind(recipe_detail_data.title.clone())
                 .bind(recipe_detail_data.description.clone())
                 .execute(&self.pool)
@@ -45,9 +46,10 @@ impl Mutation {
             })
             .collect();
         for step in steps.iter() {
+            println!("{}", recipe_id.clone());
             sqlx::query("INSERT INTO steps (id, recipe_id, description, resource_id, order_number, duration) VALUES (?, ?, ?, ?, ?, ?)")
                 .bind(step.id.clone())
-                .bind(uuid.to_string())
+                .bind(recipe_id.clone())
                 .bind(step.description.clone())
                 .bind(step.resource_id)
                 .bind(step.order_number)
@@ -58,7 +60,7 @@ impl Mutation {
         }
 
         let recipe_detail = RecipeDetail {
-            id: uuid.to_string(),
+            id: recipe_id.clone(),
             title: recipe_detail_data.title,
             description: recipe_detail_data.description,
             steps,
