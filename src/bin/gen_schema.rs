@@ -1,5 +1,5 @@
 use async_graphql::{EmptyMutation, EmptySubscription, Schema};
-use cpp_backend::presentation::graphql::query::Query;
+use cpp_backend::presentation::graphql::{mutation::Mutation, query::Query};
 use sqlx::MySqlPool;
 use std::env;
 
@@ -10,6 +10,7 @@ async fn main() {
         .unwrap();
 
     let query = Query::new(pool.clone());
-    let schema = Schema::build(query, EmptyMutation, EmptySubscription).finish();
+    let mutation = Mutation::new(pool.clone());
+    let schema = Schema::build(query, mutation, EmptySubscription).finish();
     print!("{}", schema.sdl());
 }

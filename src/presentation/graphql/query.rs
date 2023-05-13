@@ -1,8 +1,9 @@
 use super::object::{Recipe, RecipeDetail, Step};
+use crate::presentation::graphql::mutation::Mutation;
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, ID};
 use sqlx::mysql::MySqlPool;
 
-pub type QuerySchema = Schema<Query, EmptyMutation, EmptySubscription>;
+pub type QuerySchema = Schema<Query, Mutation, EmptySubscription>;
 
 pub struct Query {
     pool: MySqlPool,
@@ -68,6 +69,7 @@ impl Query {
                 let id = row.id;
                 let title = row.title;
                 let description = row.description;
+                println!("{:?}, {:?}, {:?}", id, title, description);
                 Recipe {
                     id,
                     title,
@@ -82,14 +84,14 @@ impl Query {
 
 #[derive(sqlx::FromRow)]
 struct RecipeRow {
-    id: i32,
+    id: String,
     title: String,
     description: String,
 }
 
 #[derive(sqlx::FromRow)]
 struct StepRow {
-    id: i32,
+    id: String,
     description: String,
     resource_id: i32,
     order_number: u32,
