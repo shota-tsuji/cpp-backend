@@ -17,9 +17,8 @@ use tower_http::cors::CorsLayer;
 
 #[tokio::main]
 async fn main() {
-    let pool = MySqlPool::connect(&env::var("DATABASE_URL").unwrap())
-        .await
-        .unwrap();
+    let database_url = env::var("DATABASE_URL").unwrap();
+    let pool = MySqlPool::connect(&database_url).await.unwrap();
 
     let query = Query::new(pool.clone());
     let mutation = Mutation::new(pool.clone());
