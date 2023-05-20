@@ -15,6 +15,13 @@ pub struct RecipeDetail {
     pub steps: Vec<Step>,
 }
 
+#[derive(Debug, SimpleObject)]
+pub struct Resource {
+    pub id: i32,
+    pub name: String,
+    pub amount: i32,
+}
+
 impl RecipeDetail {
     pub fn new(id: String, title: String, description: String, steps: Vec<Step>) -> Self {
         Self {
