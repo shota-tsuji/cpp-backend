@@ -2,6 +2,7 @@ use super::object::{Recipe, RecipeDetail, Step};
 use crate::presentation::graphql::mutation::Mutation;
 use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, ID};
 use sqlx::mysql::MySqlPool;
+use crate::presentation::graphql::object::Resource;
 
 pub type QuerySchema = Schema<Query, Mutation, EmptySubscription>;
 
@@ -80,6 +81,25 @@ impl Query {
 
         Ok(recipes)
     }
+
+    async fn resources(&self, _ctx: &Context<'_>) -> Result<Vec<Resource>, String> {
+        let resources = sqlx::query_as("SELECT * FROM resources")
+            .fetch_all(&self.pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row: ResourceRow| {
+                let id = row.id;
+                let name = row.name;
+                let amount = row.amount;
+                println!("{:?}, {:?}, {:?}", id, name, amount);
+                Resource {
+                    id, name, amount
+                }
+            }).collect();
+
+        Ok(resources)
+    }
 }
 
 #[derive(sqlx::FromRow)]
@@ -96,4 +116,11 @@ struct StepRow {
     resource_id: i32,
     order_number: u32,
     duration: i32,
+}
+
+#[derive(sqlx::FromRow)]
+struct ResourceRow {
+    pub id: i32,
+    pub name: String,
+    pub amount: i32,
 }
