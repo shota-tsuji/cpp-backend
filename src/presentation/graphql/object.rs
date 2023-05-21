@@ -62,3 +62,10 @@ pub struct CreateResourceInput {
     pub name: String,
     pub amount: i32,
 }
+
+#[derive(InputObject)]
+pub struct UpdateResourceInput {
+    pub id: u64,
+    pub name: String,
+    pub amount: i32,
+}

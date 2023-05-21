@@ -2,7 +2,7 @@ use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schem
 use sqlx::mysql::MySqlPool;
 use uuid::Uuid;
 
-use crate::presentation::graphql::object::{CreateResourceInput, Resource};
+use crate::presentation::graphql::object::{CreateResourceInput, Resource, UpdateResourceInput};
 
 use super::object::{CreateRecipeDetailInput, CreateStepInput, Recipe, RecipeDetail, Step};
 
@@ -83,6 +83,24 @@ impl Mutation {
 
         let resource = Resource {
             id: query_result.last_insert_id(),
+            name: resource_data.name,
+            amount: resource_data.amount,
+        };
+
+        Ok(resource)
+    }
+
+    async fn update_resource(&self, _ctx: &Context<'_>, resource_data: UpdateResourceInput) -> Result<Resource, String> {
+        let query_result = sqlx::query(r#"UPDATE resources SET name=?, amount=? where id=?"#)
+            .bind(resource_data.name.clone())
+            .bind(resource_data.amount)
+            .bind(resource_data.id)
+            .execute(&self.pool)
+            .await
+            .unwrap();
+
+        let resource = Resource {
+            id: resource_data.id,
             name: resource_data.name,
             amount: resource_data.amount,
         };
