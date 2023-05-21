@@ -17,7 +17,7 @@ pub struct RecipeDetail {
 
 #[derive(Debug, SimpleObject)]
 pub struct Resource {
-    pub id: i32,
+    pub id: u64,
     pub name: String,
     pub amount: i32,
 }
@@ -37,7 +37,7 @@ impl RecipeDetail {
 pub struct Step {
     pub id: String,
     pub description: String,
-    pub resource_id: i32,
+    pub resource_id: u64,
     pub order_number: u32,
     pub duration: i32,
 }
@@ -52,7 +52,13 @@ pub struct CreateRecipeDetailInput {
 #[derive(InputObject)]
 pub struct CreateStepInput {
     pub description: String,
-    pub resource_id: i32,
+    pub resource_id: u64,
     pub order_number: u32,
     pub duration: i32,
+}
+
+#[derive(InputObject)]
+pub struct CreateResourceInput {
+    pub name: String,
+    pub amount: i32,
 }
