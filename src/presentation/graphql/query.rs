@@ -1,8 +1,10 @@
-use super::object::{Recipe, RecipeDetail, Step};
-use crate::presentation::graphql::mutation::Mutation;
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, ID};
+use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schema};
 use sqlx::mysql::MySqlPool;
+
+use crate::presentation::graphql::mutation::Mutation;
 use crate::presentation::graphql::object::Resource;
+
+use super::object::{Recipe, RecipeDetail, Step};
 
 pub type QuerySchema = Schema<Query, Mutation, EmptySubscription>;
 
@@ -38,15 +40,19 @@ impl Query {
             .bind(id.as_str())
             .fetch_all(&self.pool)
             .await.unwrap().into_iter().map(|row: StepRow| {
-                let id = row.id;
-                let description = row.description;
-                let resource_id = row.resource_id;
-                let order_number = row.order_number;
-                let duration = row.duration;
-                Step {
-                    id, description, resource_id, order_number, duration,
-                }
-            }).collect();
+            let id = row.id;
+            let description = row.description;
+            let resource_id = row.resource_id;
+            let order_number = row.order_number;
+            let duration = row.duration;
+            Step {
+                id,
+                description,
+                resource_id,
+                order_number,
+                duration,
+            }
+        }).collect();
 
         let recipe_detail = RecipeDetail {
             id: recipe.id,
@@ -82,6 +88,24 @@ impl Query {
         Ok(recipes)
     }
 
+    async fn resource(&self, _ctx: &Context<'_>, id: ID) -> Result<Resource, String> {
+        let resource_row: Option<ResourceRow> = sqlx::query_as(r#"SELECT id, name, amount FROM resources WHERE id = ?"#)
+            .bind(id.as_str())
+            .fetch_optional(&self.pool)
+            .await
+            .unwrap();
+
+        let resource = resource_row.map(|row| Resource {
+            id: row.id,
+            name: row.name,
+            amount: row.amount,
+        }).unwrap();
+
+        println!("{:?}", &resource);
+
+        Ok(resource)
+    }
+
     async fn resources(&self, _ctx: &Context<'_>) -> Result<Vec<Resource>, String> {
         let resources = sqlx::query_as("SELECT * FROM resources")
             .fetch_all(&self.pool)
@@ -94,7 +118,9 @@ impl Query {
                 let amount = row.amount;
                 println!("{:?}, {:?}, {:?}", id, name, amount);
                 Resource {
-                    id, name, amount
+                    id,
+                    name,
+                    amount,
                 }
             }).collect();
 
@@ -113,14 +139,14 @@ struct RecipeRow {
 struct StepRow {
     id: String,
     description: String,
-    resource_id: i32,
+    resource_id: u64,
     order_number: u32,
     duration: i32,
 }
 
 #[derive(sqlx::FromRow)]
 struct ResourceRow {
-    pub id: i32,
+    pub id: u64,
     pub name: String,
     pub amount: i32,
 }

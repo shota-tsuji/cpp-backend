@@ -1,7 +1,10 @@
-use super::object::{CreateRecipeDetailInput, CreateStepInput, Recipe, RecipeDetail, Step};
-use async_graphql::{Context, EmptyMutation, EmptySubscription, Object, Schema, ID};
+use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schema};
 use sqlx::mysql::MySqlPool;
 use uuid::Uuid;
+
+use crate::presentation::graphql::object::{CreateResourceInput, Resource};
+
+use super::object::{CreateRecipeDetailInput, CreateStepInput, Recipe, RecipeDetail, Step};
 
 pub struct Mutation {
     pool: MySqlPool,
@@ -67,5 +70,23 @@ impl Mutation {
         };
 
         Ok(recipe_detail)
+    }
+
+    async fn create_resource(&self, _ctx: &Context<'_>, resource_data: CreateResourceInput) -> Result<Resource, String> {
+        let query_result =
+            sqlx::query(r#"INSERT INTO resources (name, amount) VALUES (?, ?)"#)
+                .bind(resource_data.name.clone())
+                .bind(resource_data.amount)
+                .execute(&self.pool)
+                .await
+                .unwrap();
+
+        let resource = Resource {
+            id: query_result.last_insert_id(),
+            name: resource_data.name,
+            amount: resource_data.amount,
+        };
+
+        Ok(resource)
     }
 }
