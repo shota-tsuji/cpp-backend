@@ -7,7 +7,10 @@ pub struct Recipe {
     pub description: String,
 }
 
-#[derive(Debug, SimpleObject)]
+#[derive(Debug, SimpleObject, InputObject)]
+// Also used as input for UpdateRecipeDetail mutation
+// update whole recipe detail (recipe and related steps) at once
+#[graphql(input_name = "UpdateRecipeDetailInput")]
 pub struct RecipeDetail {
     pub id: String,
     pub title: String,
@@ -33,7 +36,8 @@ impl RecipeDetail {
     }
 }
 
-#[derive(Debug, SimpleObject)]
+#[derive(Debug, SimpleObject, InputObject)]
+#[graphql(input_name = "StepInput")]
 pub struct Step {
     pub id: String,
     pub description: String,
