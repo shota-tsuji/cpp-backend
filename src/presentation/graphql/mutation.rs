@@ -72,6 +72,35 @@ impl Mutation {
         Ok(recipe_detail)
     }
 
+    async fn update_recipe_detail(
+        &self,
+        _ctx: &Context<'_>,
+        recipe_detail_data: RecipeDetail,
+    ) -> Result<RecipeDetail, String> {
+        println!("received: {:?}", recipe_detail_data);
+        let query_result = sqlx::query(r#"UPDATE recipes SET title=?, description=? where id=?"#)
+            .bind(recipe_detail_data.title.clone())
+            .bind(recipe_detail_data.description.clone())
+            .bind(recipe_detail_data.id.clone())
+            .execute(&self.pool)
+            .await
+            .unwrap();
+        for step in recipe_detail_data.steps.iter() {
+            println!("{:?}", step.clone());
+            sqlx::query("UPDATE steps SET description=?, resource_id=?, order_number=?, duration=? where id=?")
+                .bind(step.description.clone())
+                .bind(step.resource_id)
+                .bind(step.order_number)
+                .bind(step.duration)
+                .bind(step.id.clone())
+                .execute(&self.pool)
+                .await
+                .unwrap();
+        }
+
+        Ok(recipe_detail_data)
+    }
+
     async fn create_resource(&self, _ctx: &Context<'_>, resource_data: CreateResourceInput) -> Result<Resource, String> {
         let query_result =
             sqlx::query(r#"INSERT INTO resources (name, amount) VALUES (?, ?)"#)
