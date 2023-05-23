@@ -77,6 +77,7 @@ impl Mutation {
         _ctx: &Context<'_>,
         recipe_detail_data: RecipeDetail,
     ) -> Result<RecipeDetail, String> {
+        println!("received: {:?}", recipe_detail_data);
         let query_result = sqlx::query(r#"UPDATE recipes SET title=?, description=? where id=?"#)
             .bind(recipe_detail_data.title.clone())
             .bind(recipe_detail_data.description.clone())

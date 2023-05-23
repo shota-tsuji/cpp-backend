@@ -37,6 +37,7 @@ impl RecipeDetail {
 }
 
 #[derive(Debug, SimpleObject, InputObject)]
+// Different name is needed to avoid runtime error about GraphQL objects.
 #[graphql(input_name = "StepInput")]
 pub struct Step {
     pub id: String,
