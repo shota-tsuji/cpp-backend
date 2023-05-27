@@ -88,6 +88,63 @@ impl Query {
         Ok(recipes)
     }
 
+    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<Vec<RecipeDetail>, String> {
+        println!("step0");
+        let recipes: Vec<Recipe> = sqlx::query_as(r#"SELECT r.id, r.title, r.description FROM process_regsitrations AS pr LEFT JOIN recipes AS r ON pr.recipe_id = r.id WHERE pr.process_id = ?"#)
+            .bind(id.as_str())
+            .fetch_all(&self.pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row: RecipeRow| {
+                let id = row.id;
+                let title = row.title;
+                let description = row.description;
+                println!("{:?}, {:?}, {:?}", id, title, description);
+                Recipe {
+                    id,
+                    title,
+                    description,
+                }
+            })
+            .collect();
+
+        println!("step1");
+        let mut recipeDetails = Vec::new();
+        for recipe in recipes {
+            let steps = sqlx::query_as("select id, description, resource_id, order_number, duration from steps where recipe_id = ?")
+                .bind(recipe.id.as_str())
+                .fetch_all(&self.pool)
+                .await.unwrap().into_iter().map(|row: StepRow| {
+                let id = row.id;
+                let description = row.description;
+                let resource_id = row.resource_id;
+                let order_number = row.order_number;
+                let duration = row.duration;
+                Step {
+                    id,
+                    description,
+                    resource_id,
+                    order_number,
+                    duration,
+                }
+            }).collect();
+
+            println!("step2");
+            let recipe_detail = RecipeDetail {
+                id: recipe.id,
+                title: recipe.title,
+                description: recipe.description,
+                steps,
+            };
+
+            recipeDetails.push(recipe_detail);
+        }
+
+        println!("step3");
+        Ok(recipeDetails)
+    }
+
     async fn resource(&self, _ctx: &Context<'_>, id: ID) -> Result<Resource, String> {
         let resource_row: Option<ResourceRow> = sqlx::query_as(r#"SELECT id, name, amount FROM resources WHERE id = ?"#)
             .bind(id.as_str())
