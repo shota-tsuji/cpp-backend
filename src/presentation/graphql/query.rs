@@ -3,7 +3,7 @@ use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schem
 use sqlx::mysql::MySqlPool;
 
 use crate::presentation::graphql::mutation::Mutation;
-use crate::presentation::graphql::object::{HelloResponse, Resource};
+use crate::presentation::graphql::object::{HelloResponse, Process, Resource, ResourceInfo, StepResult};
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -11,6 +11,7 @@ pub mod hello_world {
 
 use hello_world::greeter_client::GreeterClient;
 use hello_world::{HelloRequest, ProcessRequest};
+use crate::presentation::graphql::query::hello_world::StepOutput;
 
 use super::object::{Recipe, RecipeDetail, Step};
 
@@ -96,7 +97,7 @@ impl Query {
         Ok(recipes)
     }
 
-    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<HelloResponse, String> {
+    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<Process, String> {
         let mut client = GreeterClient::connect("http://[::1]:50051").await.unwrap();
 
         println!("step0");
@@ -179,13 +180,14 @@ impl Query {
                     amount,
                 }
             }).collect();
+
+        // Filter only used resources
         let grpc_resources: Vec<hello_world::Resource> = resources.iter().filter(|&resource| resource_set.contains(&resource.id)).map(|resource|{
             hello_world::Resource {
                 id: resource.id,
                 amount: resource.amount
             }
         }).collect();
-
         println!("{:?}", resources);
 
         let request = tonic::Request::new(ProcessRequest {
@@ -197,9 +199,35 @@ impl Query {
         println!("{:?}", response.get_ref().steps);
         println!("{:?}", response.get_ref().resource_infos);
 
+        let step_results: Vec<StepResult> = response.get_ref().steps.iter().map(|step: &StepOutput| {
+            StepResult {
+                id: step.step_id.clone(),
+                recipe_id: step.recipe_id.clone(),
+                resource_id: step.resource_id,
+                start_time: step.start_time,
+                duration: step.duration,
+                order_number: 0,
+                timeline_index: step.time_line_index
+            }
+        }).collect();
+
+        let resource_infos = response.get_ref().resource_infos.iter().map(|resource| {
+            ResourceInfo {
+                id: resource.id as u64,
+                is_used_multiple_resources: resource.is_used_multiple_resources,
+                used_resources_count: resource.used_resources_count,
+            }
+
+        }).collect();;
+
+        let process = Process {
+            resource_infos,
+            step_results
+        };
+
         println!("step3");
         //Ok(recipeDetails)
-        Ok(HelloResponse { message: String::from("hello") })
+        Ok(process)
     }
 
     async fn resource(&self, _ctx: &Context<'_>, id: ID) -> Result<Resource, String> {

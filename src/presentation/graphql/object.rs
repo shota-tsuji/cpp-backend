@@ -40,7 +40,7 @@ pub struct Process {
 pub struct ResourceInfo {
     pub id: u64,
     pub is_used_multiple_resources: bool,
-    pub used_resources_count: u64,
+    pub used_resources_count: i32,
 }
 
 #[derive(Debug, SimpleObject)]
@@ -48,10 +48,10 @@ pub struct StepResult {
     pub id: String,
     pub recipe_id: String,
     pub resource_id: u64,
-    pub start_time: u32,
+    pub start_time: i32,
     pub duration: i32,
     pub order_number: u32,
-    pub timeline_index: u32,
+    pub timeline_index: i32,
 }
 
 impl RecipeDetail {
