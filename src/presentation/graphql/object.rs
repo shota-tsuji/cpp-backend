@@ -25,6 +25,35 @@ pub struct Resource {
     pub amount: i32,
 }
 
+#[derive(Debug, SimpleObject)]
+pub struct HelloResponse {
+    pub message: String,
+}
+
+#[derive(Debug, SimpleObject)]
+pub struct Process {
+    pub resource_infos: Vec<ResourceInfo>,
+    pub step_results: Vec<StepResult>,
+}
+
+#[derive(Debug, SimpleObject)]
+pub struct ResourceInfo {
+    pub id: u64,
+    pub is_used_multiple_resources: bool,
+    pub used_resources_count: u64,
+}
+
+#[derive(Debug, SimpleObject)]
+pub struct StepResult {
+    pub id: String,
+    pub recipe_id: String,
+    pub resource_id: u64,
+    pub start_time: u32,
+    pub duration: i32,
+    pub order_number: u32,
+    pub timeline_index: u32,
+}
+
 impl RecipeDetail {
     pub fn new(id: String, title: String, description: String, steps: Vec<Step>) -> Self {
         Self {
