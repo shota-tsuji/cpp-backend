@@ -54,6 +54,8 @@ pub struct StepResult {
     pub duration: i32,
     pub order_number: u32,
     pub timeline_index: i32,
+    pub description: String,
+    pub recipe_name: String,
 }
 
 impl RecipeDetail {

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schema};
 use sqlx::mysql::MySqlPool;
 
@@ -123,6 +123,8 @@ impl Query {
         println!("step1");
         let mut resource_set = HashSet::new();
         let mut grpc_recipes: Vec<hello_world::Recipe> = Vec::new();
+        let mut step_infos: HashMap<String, String> = HashMap::new();
+        let mut recipe_infos: HashMap<String, String> = HashMap::new();
         for recipe in &recipes {
             let steps: Vec<Step> = sqlx::query_as("select id, description, resource_id, order_number, duration from steps where recipe_id = ?")
                 .bind(recipe.id.as_str())
@@ -143,10 +145,12 @@ impl Query {
             }).collect();
 
             println!("step2");
+            recipe_infos.insert(recipe.id.clone(), recipe.title.clone());
 
             // Get unique resource ids
             for step in &steps {
                 resource_set.insert(step.resource_id);
+                step_infos.insert(step.id.clone(), step.description.clone());
             }
 
             let grpc_steps = steps.iter().map(|step| {
@@ -161,7 +165,7 @@ impl Query {
             grpc_recipes.push(hello_world::Recipe {
                 id: recipe.id.clone(),
                 steps: grpc_steps
-            })
+            });
         }
 
         let mut resources: Vec<Resource> = sqlx::query_as("SELECT * FROM resources")
@@ -202,6 +206,8 @@ impl Query {
         println!("{:?}", response.get_ref().resource_infos);
 
         let step_results: Vec<StepResult> = response.get_ref().steps.iter().map(|step: &StepOutput| {
+            let description = step_infos.get(step.step_id.as_str()).unwrap();
+            let recipe_name = recipe_infos.get(step.recipe_id.as_str()).unwrap();
             StepResult {
                 id: step.step_id.clone(),
                 recipe_id: step.recipe_id.clone(),
@@ -209,7 +215,9 @@ impl Query {
                 start_time: step.start_time,
                 duration: step.duration,
                 order_number: 0,
-                timeline_index: step.time_line_index
+                timeline_index: step.time_line_index,
+                description: description.to_string(),
+                recipe_name: recipe_name.to_string(),
             }
         }).collect();
 
