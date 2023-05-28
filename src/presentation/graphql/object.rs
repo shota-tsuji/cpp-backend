@@ -107,3 +107,13 @@ pub struct UpdateResourceInput {
     pub name: String,
     pub amount: i32,
 }
+
+#[derive(Debug, InputObject)]
+pub struct CreateProcessInput {
+    pub recipe_id_list: Vec<String>,
+}
+
+#[derive(Debug, SimpleObject)]
+pub struct ProcessId {
+    pub id: u64,
+}
