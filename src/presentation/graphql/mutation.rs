@@ -2,7 +2,7 @@ use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schem
 use sqlx::mysql::MySqlPool;
 use uuid::Uuid;
 
-use crate::presentation::graphql::object::{CreateResourceInput, Resource, UpdateResourceInput};
+use crate::presentation::graphql::object::{CreateProcessInput, CreateResourceInput, ProcessId, Resource, UpdateResourceInput};
 
 use super::object::{CreateRecipeDetailInput, CreateStepInput, Recipe, RecipeDetail, Step};
 
@@ -135,5 +135,28 @@ impl Mutation {
         };
 
         Ok(resource)
+    }
+
+    async fn create_process(&self, _ctx: &Context<'_>, recipe_id_list: CreateProcessInput) -> Result<ProcessId, String> {
+        let query_result =
+            sqlx::query(r#"INSERT INTO processes (name) VALUES (?)"#)
+                .bind("process")
+                .execute(&self.pool)
+                .await
+                .unwrap();
+        let process_id = query_result.last_insert_id();
+
+        for recipe_id in recipe_id_list.recipe_id_list {
+            sqlx::query("INSERT INTO process_regsitrations (process_id, recipe_id) VALUES (?, ?)")
+                .bind(process_id)
+                .bind(recipe_id.clone())
+                .execute(&self.pool)
+                .await
+                .unwrap();
+        }
+
+        Ok(ProcessId {
+            id: process_id
+        })
     }
 }
