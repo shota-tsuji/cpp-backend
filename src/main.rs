@@ -14,9 +14,17 @@ use std::env;
 use std::net::SocketAddr;
 use tower::ServiceBuilder;
 use tower_http::cors::CorsLayer;
+use hello_world::greeter_client::GreeterClient;
+use hello_world::HelloRequest;
+
+pub mod hello_world {
+    tonic::include_proto!("helloworld");
+}
 
 #[tokio::main]
 async fn main() {
+    let mut client = GreeterClient::connect("http://[::1]:50051").await.unwrap();
+
     let database_url = env::var("DATABASE_URL").unwrap();
     let pool = MySqlPool::connect(&database_url).await.unwrap();
 

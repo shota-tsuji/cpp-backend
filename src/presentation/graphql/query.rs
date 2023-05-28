@@ -1,8 +1,16 @@
+use std::collections::HashSet;
 use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schema};
 use sqlx::mysql::MySqlPool;
 
 use crate::presentation::graphql::mutation::Mutation;
-use crate::presentation::graphql::object::Resource;
+use crate::presentation::graphql::object::{HelloResponse, Resource};
+
+pub mod hello_world {
+    tonic::include_proto!("helloworld");
+}
+
+use hello_world::greeter_client::GreeterClient;
+use hello_world::{HelloRequest, ProcessRequest};
 
 use super::object::{Recipe, RecipeDetail, Step};
 
@@ -88,7 +96,9 @@ impl Query {
         Ok(recipes)
     }
 
-    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<Vec<RecipeDetail>, String> {
+    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<HelloResponse, String> {
+        let mut client = GreeterClient::connect("http://[::1]:50051").await.unwrap();
+
         println!("step0");
         let recipes: Vec<Recipe> = sqlx::query_as(r#"SELECT r.id, r.title, r.description FROM process_regsitrations AS pr LEFT JOIN recipes AS r ON pr.recipe_id = r.id WHERE pr.process_id = ?"#)
             .bind(id.as_str())
@@ -110,9 +120,10 @@ impl Query {
             .collect();
 
         println!("step1");
-        let mut recipeDetails = Vec::new();
-        for recipe in recipes {
-            let steps = sqlx::query_as("select id, description, resource_id, order_number, duration from steps where recipe_id = ?")
+        let mut resource_set = HashSet::new();
+        let mut grpc_recipes: Vec<hello_world::Recipe> = Vec::new();
+        for recipe in &recipes {
+            let steps: Vec<Step> = sqlx::query_as("select id, description, resource_id, order_number, duration from steps where recipe_id = ?")
                 .bind(recipe.id.as_str())
                 .fetch_all(&self.pool)
                 .await.unwrap().into_iter().map(|row: StepRow| {
@@ -131,18 +142,64 @@ impl Query {
             }).collect();
 
             println!("step2");
-            let recipe_detail = RecipeDetail {
-                id: recipe.id,
-                title: recipe.title,
-                description: recipe.description,
-                steps,
-            };
 
-            recipeDetails.push(recipe_detail);
+            // Get unique resource ids
+            for step in &steps {
+                resource_set.insert(step.resource_id);
+            }
+
+            let grpc_steps = steps.iter().map(|step| {
+                hello_world::Step {
+                    id: step.id.clone(),
+                    recipe_id: recipe.id.clone(),
+                    resource_id: step.resource_id.clone(),
+                    duration: step.duration,
+                    order_number: step.order_number,
+                }
+            }).collect();
+            grpc_recipes.push(hello_world::Recipe {
+                id: recipe.id.clone(),
+                steps: grpc_steps
+            })
         }
 
+        let resources: Vec<Resource> = sqlx::query_as("SELECT * FROM resources")
+            .fetch_all(&self.pool)
+            .await
+            .unwrap()
+            .into_iter()
+            .map(|row: ResourceRow| {
+                let id = row.id;
+                let name = row.name;
+                let amount = row.amount;
+                println!("{:?}, {:?}, {:?}", id, name, amount);
+                Resource {
+                    id,
+                    name,
+                    amount,
+                }
+            }).collect();
+        let grpc_resources: Vec<hello_world::Resource> = resources.iter().filter(|&resource| resource_set.contains(&resource.id)).map(|resource|{
+            hello_world::Resource {
+                id: resource.id,
+                amount: resource.amount
+            }
+        }).collect();
+
+        println!("{:?}", resources);
+
+        let request = tonic::Request::new(ProcessRequest {
+            recipes: grpc_recipes.into(),
+            resources: grpc_resources.into(),
+        });
+
+        let response = client.process(request).await.unwrap();
+        println!("{:?}", response.get_ref().steps);
+        println!("{:?}", response.get_ref().resource_infos);
+
         println!("step3");
-        Ok(recipeDetails)
+        //Ok(recipeDetails)
+        Ok(HelloResponse { message: String::from("hello") })
     }
 
     async fn resource(&self, _ctx: &Context<'_>, id: ID) -> Result<Resource, String> {
