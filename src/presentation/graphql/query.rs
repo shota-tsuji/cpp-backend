@@ -1,9 +1,9 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schema};
 use sqlx::mysql::MySqlPool;
 
 use crate::presentation::graphql::mutation::Mutation;
-use crate::presentation::graphql::object::{HelloResponse, Resource};
+use crate::presentation::graphql::object::{HelloResponse, Process, Resource, ResourceInfo, StepResult};
 
 pub mod hello_world {
     tonic::include_proto!("helloworld");
@@ -11,6 +11,7 @@ pub mod hello_world {
 
 use hello_world::greeter_client::GreeterClient;
 use hello_world::{HelloRequest, ProcessRequest};
+use crate::presentation::graphql::query::hello_world::StepOutput;
 
 use super::object::{Recipe, RecipeDetail, Step};
 
@@ -96,7 +97,7 @@ impl Query {
         Ok(recipes)
     }
 
-    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<HelloResponse, String> {
+    async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<Process, String> {
         let mut client = GreeterClient::connect("http://[::1]:50051").await.unwrap();
 
         println!("step0");
@@ -122,6 +123,8 @@ impl Query {
         println!("step1");
         let mut resource_set = HashSet::new();
         let mut grpc_recipes: Vec<hello_world::Recipe> = Vec::new();
+        let mut step_infos: HashMap<String, String> = HashMap::new();
+        let mut recipe_infos: HashMap<String, String> = HashMap::new();
         for recipe in &recipes {
             let steps: Vec<Step> = sqlx::query_as("select id, description, resource_id, order_number, duration from steps where recipe_id = ?")
                 .bind(recipe.id.as_str())
@@ -142,10 +145,12 @@ impl Query {
             }).collect();
 
             println!("step2");
+            recipe_infos.insert(recipe.id.clone(), recipe.title.clone());
 
             // Get unique resource ids
             for step in &steps {
                 resource_set.insert(step.resource_id);
+                step_infos.insert(step.id.clone(), step.description.clone());
             }
 
             let grpc_steps = steps.iter().map(|step| {
@@ -160,10 +165,10 @@ impl Query {
             grpc_recipes.push(hello_world::Recipe {
                 id: recipe.id.clone(),
                 steps: grpc_steps
-            })
+            });
         }
 
-        let resources: Vec<Resource> = sqlx::query_as("SELECT * FROM resources")
+        let mut resources: Vec<Resource> = sqlx::query_as("SELECT * FROM resources")
             .fetch_all(&self.pool)
             .await
             .unwrap()
@@ -179,6 +184,11 @@ impl Query {
                     amount,
                 }
             }).collect();
+        resources.sort_by_key(|r| r.id);
+        println!("{:?}", resources);
+
+        println!("step3");
+        // Filter only used resources
         let grpc_resources: Vec<hello_world::Resource> = resources.iter().filter(|&resource| resource_set.contains(&resource.id)).map(|resource|{
             hello_world::Resource {
                 id: resource.id,
@@ -186,20 +196,58 @@ impl Query {
             }
         }).collect();
 
-        println!("{:?}", resources);
-
         let request = tonic::Request::new(ProcessRequest {
             recipes: grpc_recipes.into(),
             resources: grpc_resources.into(),
         });
 
-        let response = client.process(request).await.unwrap();
+        let mut response = client.process(request).await.unwrap();
         println!("{:?}", response.get_ref().steps);
         println!("{:?}", response.get_ref().resource_infos);
 
-        println!("step3");
+        let step_results: Vec<StepResult> = response.get_ref().steps.iter().map(|step: &StepOutput| {
+            let description = step_infos.get(step.step_id.as_str()).unwrap();
+            let recipe_name = recipe_infos.get(step.recipe_id.as_str()).unwrap();
+            StepResult {
+                id: step.step_id.clone(),
+                recipe_id: step.recipe_id.clone(),
+                resource_id: step.resource_id,
+                start_time: step.start_time,
+                duration: step.duration,
+                order_number: 0,
+                timeline_index: step.time_line_index,
+                description: description.to_string(),
+                recipe_name: recipe_name.to_string(),
+            }
+        }).collect();
+
+        response.get_mut().resource_infos.sort_by_key(|r| r.id);
+        let mut resource_infos: Vec<ResourceInfo> = Vec::new();
+        for (i, resource) in response.get_ref().resource_infos.iter().enumerate() {
+            for j in 0..resource.used_resources_count {
+                let mut steps: Vec<StepResult> = Vec::new();
+                for step in &step_results {
+                    if step.resource_id == resource.id as u64 && j == step.timeline_index {
+                        steps.push(step.clone());
+                    }
+                }
+
+                resource_infos.push(ResourceInfo{
+                    id: resource.id as u64,
+                    name: resources[i].name.clone(),
+                    steps,
+                });
+            }
+        }
+        println!("{:?}", resource_infos);
+
+        let process = Process {
+            resource_infos,
+        };
+
+        println!("step4");
         //Ok(recipeDetails)
-        Ok(HelloResponse { message: String::from("hello") })
+        Ok(process)
     }
 
     async fn resource(&self, _ctx: &Context<'_>, id: ID) -> Result<Resource, String> {
