@@ -195,6 +195,7 @@ impl Query {
 
         let response = client.process(request).await.unwrap();
         println!("{:?}", response.get_ref().steps);
+        println!("{:?}", response.get_ref().resource_infos);
 
         println!("step3");
         //Ok(recipeDetails)
