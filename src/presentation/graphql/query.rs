@@ -164,7 +164,7 @@ impl Query {
             })
         }
 
-        let resources: Vec<Resource> = sqlx::query_as("SELECT * FROM resources")
+        let mut resources: Vec<Resource> = sqlx::query_as("SELECT * FROM resources")
             .fetch_all(&self.pool)
             .await
             .unwrap()
@@ -180,7 +180,10 @@ impl Query {
                     amount,
                 }
             }).collect();
+        resources.sort_by_key(|r| r.id);
+        println!("{:?}", resources);
 
+        println!("step3");
         // Filter only used resources
         let grpc_resources: Vec<hello_world::Resource> = resources.iter().filter(|&resource| resource_set.contains(&resource.id)).map(|resource|{
             hello_world::Resource {
@@ -188,14 +191,13 @@ impl Query {
                 amount: resource.amount
             }
         }).collect();
-        println!("{:?}", resources);
 
         let request = tonic::Request::new(ProcessRequest {
             recipes: grpc_recipes.into(),
             resources: grpc_resources.into(),
         });
 
-        let response = client.process(request).await.unwrap();
+        let mut response = client.process(request).await.unwrap();
         println!("{:?}", response.get_ref().steps);
         println!("{:?}", response.get_ref().resource_infos);
 
@@ -211,21 +213,31 @@ impl Query {
             }
         }).collect();
 
-        let resource_infos = response.get_ref().resource_infos.iter().map(|resource| {
-            ResourceInfo {
-                id: resource.id as u64,
-                is_used_multiple_resources: resource.is_used_multiple_resources,
-                used_resources_count: resource.used_resources_count,
-            }
+        response.get_mut().resource_infos.sort_by_key(|r| r.id);
+        let mut resource_infos: Vec<ResourceInfo> = Vec::new();
+        for (i, resource) in response.get_ref().resource_infos.iter().enumerate() {
+            for j in 0..resource.used_resources_count {
+                let mut steps: Vec<StepResult> = Vec::new();
+                for step in &step_results {
+                    if step.resource_id == resource.id as u64 && j == step.timeline_index {
+                        steps.push(step.clone());
+                    }
+                }
 
-        }).collect();;
+                resource_infos.push(ResourceInfo{
+                    id: resource.id as u64,
+                    name: resources[i].name.clone(),
+                    steps,
+                });
+            }
+        }
+        println!("{:?}", resource_infos);
 
         let process = Process {
             resource_infos,
-            step_results
         };
 
-        println!("step3");
+        println!("step4");
         //Ok(recipeDetails)
         Ok(process)
     }

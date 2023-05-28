@@ -33,17 +33,19 @@ pub struct HelloResponse {
 #[derive(Debug, SimpleObject)]
 pub struct Process {
     pub resource_infos: Vec<ResourceInfo>,
-    pub step_results: Vec<StepResult>,
+    //pub step_results: Vec<StepResult>,
 }
 
 #[derive(Debug, SimpleObject)]
 pub struct ResourceInfo {
     pub id: u64,
-    pub is_used_multiple_resources: bool,
-    pub used_resources_count: i32,
+    pub name: String,
+    pub steps: Vec<StepResult>,
+    //pub is_used_multiple_resources: bool,
+    //pub used_resources_count: i32,
 }
 
-#[derive(Debug, SimpleObject)]
+#[derive(Debug, SimpleObject, Clone)]
 pub struct StepResult {
     pub id: String,
     pub recipe_id: String,
