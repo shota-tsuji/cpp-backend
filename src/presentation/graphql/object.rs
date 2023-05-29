@@ -117,3 +117,14 @@ pub struct CreateProcessInput {
 pub struct ProcessId {
     pub id: u64,
 }
+
+#[derive(InputObject)]
+pub struct CreateRecipeStepInput {
+    pub id: String,
+    pub steps: Vec<CreateStepInput>,
+}
+
+#[derive(Debug, SimpleObject)]
+pub struct RecipeId {
+    pub id: String,
+}
