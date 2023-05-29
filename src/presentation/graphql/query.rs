@@ -98,7 +98,7 @@ impl Query {
     }
 
     async fn process(&self, _ctx: &Context<'_>, id: ID) -> Result<Process, String> {
-        let mut client = GreeterClient::connect("http://[::1]:50051").await.unwrap();
+        let mut client = GreeterClient::connect("http://main:50051").await.unwrap();
 
         println!("step0");
         let recipes: Vec<Recipe> = sqlx::query_as(r#"SELECT r.id, r.title, r.description FROM process_regsitrations AS pr LEFT JOIN recipes AS r ON pr.recipe_id = r.id WHERE pr.process_id = ?"#)
