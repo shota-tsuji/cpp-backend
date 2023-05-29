@@ -2,7 +2,7 @@ use async_graphql::{Context, EmptyMutation, EmptySubscription, ID, Object, Schem
 use sqlx::mysql::MySqlPool;
 use uuid::Uuid;
 
-use crate::presentation::graphql::object::{CreateProcessInput, CreateResourceInput, ProcessId, Resource, UpdateResourceInput};
+use crate::presentation::graphql::object::{CreateProcessInput, CreateRecipeStepInput, CreateResourceInput, ProcessId, RecipeId, Resource, UpdateResourceInput};
 
 use super::object::{CreateRecipeDetailInput, CreateStepInput, Recipe, RecipeDetail, Step};
 
@@ -157,6 +157,38 @@ impl Mutation {
 
         Ok(ProcessId {
             id: process_id
+        })
+    }
+
+    async fn create_step(&self, _ctx: &Context<'_>, create_recipe_step_data: CreateRecipeStepInput) -> Result<RecipeId, String> {
+        let recipe_id = create_recipe_step_data.id;
+        let steps: Vec<Step> = create_recipe_step_data
+            .steps
+            .into_iter()
+            .map(|step| Step {
+                id: Uuid::new_v4().to_string(),
+                description: step.description,
+                resource_id: step.resource_id,
+                order_number: step.order_number,
+                duration: step.duration,
+            })
+            .collect();
+        for step in steps.iter() {
+            println!("{}", recipe_id.clone());
+            sqlx::query("INSERT INTO steps (id, recipe_id, description, resource_id, order_number, duration) VALUES (?, ?, ?, ?, ?, ?)")
+                .bind(step.id.clone())
+                .bind(recipe_id.clone())
+                .bind(step.description.clone())
+                .bind(step.resource_id)
+                .bind(step.order_number)
+                .bind(step.duration)
+                .execute(&self.pool)
+                .await
+                .unwrap();
+        }
+
+        Ok(RecipeId {
+            id: recipe_id
         })
     }
 }
